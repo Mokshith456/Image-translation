@@ -66,6 +66,7 @@ python test.py
 
 - This implementation is inspired by the original CycleGAN paper: [Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks](https://arxiv.org/abs/1703.10593).
 - Parts of the code are adapted from [CycleGAN and pix2pix in PyTorch](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix) by Jun-Yan Zhu et al.
+- Day time and Night time road Images from Kaggle [Training dataset](https://www.kaggle.com/datasets/raman77768/day-time-and-night-time-road-images)
 
 ## License
 
