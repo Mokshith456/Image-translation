@@ -88,3 +88,115 @@ def ssim(img1, img2):
 # Directory to save the generated images
 save_dir = "./generated_images"
 os.makedirs(save_dir, exist_ok=True)
+
+# Training loop
+for epoch in range(epochs):
+    # Iterate through dataset batches
+    for batch_idx, (real_X, real_Y) in enumerate(zip(dataloader_X, dataloader_Y)):
+        # Extract the data tensor from the list
+        real_X, real_Y = real_X[0].to(device), real_Y[0].to(device)
+
+        # Train Generator
+        optimizer_G.zero_grad()
+
+        fake_Y, cycle_X, fake_X, cycle_Y = cycle_gan(real_X, real_Y)
+
+        # Calculate Generator adversarial loss
+        loss_GAN_X = criterion_GAN(D_Y(fake_Y), torch.ones_like(D_Y(fake_Y)))
+        loss_GAN_Y = criterion_GAN(D_X(fake_X), torch.ones_like(D_X(fake_X)))
+
+        # Calculate cycle consistency loss
+        loss_cycle_X = criterion_cycle(cycle_X, real_X)
+        loss_cycle_Y = criterion_cycle(cycle_Y, real_Y)
+
+        # Calculate identity loss
+        identity_X = G_YtoX(real_X)
+        identity_Y = G_XtoY(real_Y)
+        loss_identity_X = criterion_identity(identity_X, real_X)
+        loss_identity_Y = criterion_identity(identity_Y, real_Y)
+
+        # Total Generator loss
+        loss_G = loss_GAN_X + loss_GAN_Y + loss_cycle_X + loss_cycle_Y + loss_identity_X + loss_identity_Y
+
+        # Backpropagation
+        loss_G.backward()
+        optimizer_G.step()
+
+        # Train Discriminator X
+        optimizer_D_X.zero_grad()
+
+        loss_D_X_real = criterion_GAN(D_X(real_X), torch.ones_like(D_X(real_X)))
+        loss_D_X_fake = criterion_GAN(D_X(fake_X.detach()), torch.zeros_like(D_X(fake_X.detach())))
+
+        loss_D_X = 0.5 * (loss_D_X_real + loss_D_X_fake)
+
+        loss_D_X.backward()
+        optimizer_D_X.step()
+
+        # Train Discriminator Y
+        optimizer_D_Y.zero_grad()
+
+        loss_D_Y_real = criterion_GAN(D_Y(real_Y), torch.ones_like(D_Y(real_Y)))
+        loss_D_Y_fake = criterion_GAN(D_Y(fake_Y.detach()), torch.zeros_like(D_Y(fake_Y.detach())))
+
+        loss_D_Y = 0.5 * (loss_D_Y_real + loss_D_Y_fake)
+
+        loss_D_Y.backward()
+        optimizer_D_Y.step()
+
+        # Print losses
+        if batch_idx % 64 == 0:
+            print(
+                f"Epoch [{epoch}/{epochs}], Batch Step [{batch_idx}/{min(len(dataloader_X), len(dataloader_Y))}], "
+                f"Loss G: {loss_G.item():.4f}, Loss D_X: {loss_D_X.item():.4f}, Loss D_Y: {loss_D_Y.item():.4f}, "
+                f"Cycle Consistency Loss X: {loss_cycle_X.item():.4f}, Cycle Consistency Loss Y: {loss_cycle_Y.item():.4f}, "
+                f"Identity Loss X: {loss_identity_X.item():.4f}, Identity Loss Y: {loss_identity_Y.item():.4f}"
+            )
+        # Save the generated images individually
+        save_image(fake_Y, os.path.join(save_dir, f"fake_Y_epoch{epoch}_batch{batch_idx}.png"))
+        save_image(fake_X, os.path.join(save_dir, f"fake_X_epoch{epoch}_batch{batch_idx}.png"))
+        save_image(cycle_X, os.path.join(save_dir, f"cycle_X_epoch{epoch}_batch{batch_idx}.png"))
+        save_image(cycle_Y, os.path.join(save_dir, f"cycle_Y_epoch{epoch}_batch{batch_idx}.png"))
+
+    # Evaluation (moved outside the batch loop)
+    with torch.no_grad():
+        # Sample a batch from dataloader_X
+        data_X = next(iter(dataloader_X))
+        sample_real_X = data_X[0].to(device)  # Assuming data_X is a tuple where the first element is the input batch
+
+        # Sample a batch from dataloader_Y
+        data_Y = next(iter(dataloader_Y))
+        sample_real_Y = data_Y[0].to(device)  # Assuming data_Y is a tuple where the first element is the input batch
+
+        if len(sample_real_Y.shape) > 3:  # Check for batch dimension
+            sample_real_Y = sample_real_Y.squeeze(0)  # Remove batch dimension
+            sample_real_X = sample_real_X.squeeze(0)  # Remove batch dimension for consistency
+
+        # Perform evaluation using the sampled batches
+        fake_Y, cycle_X, fake_X, cycle_Y = cycle_gan(sample_real_X, sample_real_Y)
+
+        # Calculate evaluation metrics
+        # For example, Mean Squared Error (MSE) and Structural Similarity Index (SSIM)
+        mse_fake_Y = mse(fake_Y, sample_real_Y)
+        mse_fake_X = mse(fake_X, sample_real_X)
+        ssim_fake_Y = ssim(fake_Y, sample_real_Y)
+        ssim_fake_X = ssim(fake_X, sample_real_X)
+
+        # Print evaluation metrics
+        print(f"Evaluation Metrics - Epoch [{epoch}/{epochs}]:")
+        print(f"  MSE (fake_Y): {mse_fake_Y:.4f}, MSE (fake_X): {mse_fake_X:.4f}")
+        print(f"  SSIM (fake_Y): {ssim_fake_Y:.4f}, SSIM (fake_X): {ssim_fake_X:.4f}")
+
+    # Save models periodically
+    if epoch % 9 == 0:
+        torch.save({
+            'G_XtoY_state_dict': G_XtoY.state_dict(),
+            'G_YtoX_state_dict': G_YtoX.state_dict(),
+            'D_X_state_dict': D_X.state_dict(),
+            'D_Y_state_dict': D_Y.state_dict(),
+            'optimizer_G_state_dict': optimizer_G.state_dict(),
+            'optimizer_D_X_state_dict': optimizer_D_X.state_dict(),
+            'optimizer_D_Y_state_dict': optimizer_D_Y.state_dict(),
+            'epoch': epoch
+        }, f"cycle_gan_checkpoint_epoch_{epoch}.pt")
+
