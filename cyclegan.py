@@ -13,6 +13,10 @@ from torchvision.utils import save_image
 # Set device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# Assuming Generator and Discriminator classes are defined in generator.py and discriminator.py respectively
+from generator import Generator
+from discriminator import Discriminator
+
 class CycleGAN(nn.Module):
     def __init__(self, G_XtoY, G_YtoX, D_X, D_Y):
         super(CycleGAN, self).__init__()
@@ -55,8 +59,7 @@ optimizer_G = optim.Adam(itertools.chain(G_XtoY.parameters(), G_YtoX.parameters(
 optimizer_D_X = optim.Adam(D_X.parameters(), lr=lr, betas=(0.5, 0.999))
 optimizer_D_Y = optim.Adam(D_Y.parameters(), lr=lr, betas=(0.5, 0.999))
 
-# Data loading (Assuming you have datasets day_images and night_images)
-# Assuming you have datasets X and Y
+# Data loading
 transform = transforms.Compose([transforms.Resize((256, 256)), transforms.ToTensor()])
 dataset_X = datasets.ImageFolder(root='E:/Sem 4/Machine learning/day_time', transform=transform)
 dataset_Y = datasets.ImageFolder(root='E:/Sem 4/Machine learning/night_time', transform=transform)
@@ -67,35 +70,20 @@ dataloader_Y = DataLoader(dataset_Y, batch_size=batch_size, shuffle=True)
 def mse(img1, img2):
     return torch.mean((img1 - img2) ** 2)
 
-from skimage.metrics import structural_similarity as ssim_skimage
-import numpy as np
-
 def ssim(img1, img2):
-    # Convert tensors to numpy arrays if not already
     img1 = img1.cpu().detach().numpy() if isinstance(img1, torch.Tensor) else img1
     img2 = img2.cpu().detach().numpy() if isinstance(img2, torch.Tensor) else img2
-
-    # Ensure images are in range [0, 1]
     img1 = img1 / 255.0 if img1.max() > 1 else img1
     img2 = img2 / 255.0 if img2.max() > 1 else img2
-
-    # Calculate SSIM for each image in the batch
     ssim_values = []
-    for i in range(img1.shape[0]):  # Assuming batch dimension is first
+    for i in range(img1.shape[0]):
         current_img1 = img1[i]
         current_img2 = img2[i]
-
-        # Adjust window size to fit the image size
-        min_dim = min(current_img1.shape[:2])  # Get the smaller dimension of the image
-        win_size = min(7, min_dim - (min_dim % 2 - 1))  # Ensure it's odd and less than or equal to 7
-
-        # Calculate SSIM, ensuring the window size is smaller than the smallest image dimension
+        min_dim = min(current_img1.shape[:2])
+        win_size = min(7, min_dim - (min_dim % 2 - 1))
         ssim_value = ssim_skimage(current_img1, current_img2, win_size=win_size, multichannel=True, data_range=img1.max() - img1.min())
         ssim_values.append(ssim_value)
-
     return np.mean(ssim_values)
-
-# Note: Ensure that the preprocessing of the images adjusts them to a known data range if using this function.
 
 # Directory to save the generated images
 save_dir = "./generated_images"
