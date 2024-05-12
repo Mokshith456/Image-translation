@@ -1,16 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.optim as optim
-from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
-import itertools
-from PIL import Image
-import numpy as np
-from skimage.metrics import structural_similarity as ssim_skimage
-import os
-from torchvision.utils import save_image
-# Set device
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
@@ -52,6 +42,7 @@ class Generator(nn.Module):
 
     def forward(self, x):
         # Implement forward pass of the generator
+        x = x.to(device)
         x = self.encoder(x)
         x = self.decoder(x)
         return x
