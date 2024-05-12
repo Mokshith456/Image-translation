@@ -1,17 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.optim as optim
-from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
-import itertools
-from PIL import Image
-import numpy as np
-from skimage.metrics import structural_similarity as ssim_skimage
-import os
-from torchvision.utils import save_image
-
-# Set device
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class Discriminator(nn.Module):
     def __init__(self):
@@ -30,8 +18,7 @@ class Discriminator(nn.Module):
             nn.Conv2d(256, 512, kernel_size=4, stride=1, padding=1),
             nn.BatchNorm2d(512),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(512, 1, kernel_size=4, stride=1, padding=1),
-            nn.Sigmoid()
+            nn.Conv2d(512, 1, kernel_size=4, stride=1, padding=1)
         )
 
     def forward(self, x):
